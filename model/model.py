@@ -70,6 +70,7 @@ class SinusoidalPositionalEmbedding(nn.Embedding):
             positions = torch.arange(seq_len, dtype=torch.long, device=self.weight.device)
         return super().forward(positions)
 
+
 class ScaledDotProductAttention(nn.Module):
     ''' Scaled Dot-Product Attention '''
 
@@ -262,8 +263,8 @@ class QANet(nn.Module):
         # self.linear_1 = nn.Linear(in_channel * 24 * 2, 2)
 
     def forward(self, L, R):
-        L = self.number_embed(L)
-        R = self.number_embed(R)
+        # L = self.number_embed(L)
+        # R = self.number_embed(R)
 
         if self.position_embed:
             batchsize = L.shape[0]

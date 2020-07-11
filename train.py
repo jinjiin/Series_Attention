@@ -2,7 +2,8 @@ import argparse
 import collections
 import torch
 # import data_loader.data_loaders as module_data
-import data_loader.data_loaders as module_data
+# import data_loader.data_loaders as module_data
+import data_loader.data_loader_embed as module_data
 import model.loss as module_loss
 
 import model.metric as module_metric
@@ -20,7 +21,7 @@ def main(config):
     # build model architecture, then print to console
     model = config.initialize('arch', module_arch)
     logger.info(model)
-    model.apply(weights_init)
+    # model.apply(weights_init)
 
     # number_embedding_model = resume_weight_transE()
     # print('number_embedding_model parameter')
