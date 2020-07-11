@@ -84,7 +84,7 @@ class Trainer(BaseTrainer):
             pm10_metrics = self.metrics(pm10_predict, pm10_target)
 
             total_pm25_metrics += pm25_metrics.item()
-            total_pm25_metrics += pm10_metrics.item()
+            total_pm10_metrics += pm10_metrics.item()
             total_pm25_loss += pm25_loss.item()
             total_pm10_loss += pm10_loss.item()
             total_loss += mse_loss.item()
@@ -153,7 +153,7 @@ class Trainer(BaseTrainer):
                 pm10_metrics = self.metrics(pm10_predict, pm10_target)
 
                 total_pm25_metrics += pm25_metrics.item()
-                total_pm25_metrics += pm10_metrics.item()
+                total_pm10_metrics += pm10_metrics.item()
                 total_pm25_loss += pm25_loss.item()
                 total_pm10_loss += pm10_loss.item()
                 total_loss += mse_loss.item()

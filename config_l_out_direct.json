@@ -13,7 +13,7 @@
             "gate":null,
             "position_embed":false,
             "time_len":24,
-            "dis_fcn":false
+            "dis_fcn":true
         }
     },
     "data_loader": {
