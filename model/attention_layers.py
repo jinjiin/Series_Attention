@@ -174,7 +174,7 @@ class SingleHeadAttention(nn.Module):
                 diagonal=-1,
             )[:, ::self.head_index + 1 if self.downsample else 1].unsqueeze(0)
             attn_weights += torch.triu(
-                attn_weights.data.new([0]).expand(tgt_len, tgt_len).clone(),
+                attn_weights.data.new([-1e9]).expand(tgt_len, tgt_len).clone(),
                 diagonal=0
             )[:, ::self.head_index + 1 if self.downsample else 1].unsqueeze(0)
         tgt_size = tgt_len

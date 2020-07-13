@@ -8,13 +8,13 @@
             "n_head":5,
             "embedding_dim":50,
             "feature_concat":"l_out_direct",
-            "d_k":64,
+            "d_k":100,
             "attention":true,
             "gate":null,
             "position_embed":false,
             "time_len":24,
-            "dis_fcn":false
-
+            "dis_fcn":false,
+            "attn_mask":true
         }
     },
     "data_loader": {

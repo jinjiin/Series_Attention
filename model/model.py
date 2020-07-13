@@ -78,9 +78,17 @@ class ScaledDotProductAttention(nn.Module):
 
         attn = torch.matmul(q / self.temperature, k.transpose(2, 3))
 
-
         if mask is not None:
-            attn = attn.masked_fill(mask == 0, -1e9)
+            # attn = attn.masked_fill(mask == 0, -1e9)
+            tgt_len = attn.shape[-1]
+            attn *= torch.tril(
+                attn.data.new([1]).expand(tgt_len, tgt_len).clone(),
+                diagonal=-1,
+            )
+            attn += torch.triu(
+                attn.data.new([-1e9]).expand(tgt_len, tgt_len).clone(),
+                diagonal=0
+            )
 
         attn = F.softmax(attn, dim=-1)
         output = torch.matmul(attn, v)
@@ -133,8 +141,8 @@ class MultiHeadAttention(nn.Module):
         # Transpose for attention dot product: b x n x lq x dv
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
 
-        if mask is not None:
-            mask = mask.unsqueeze(1)  # For head axis broadcasting.
+        # if mask is not None:
+        #     mask = mask.unsqueeze(1)  # For head axis broadcasting.
 
         q, attn = self.attention(q, k, v, mask=mask)
 
@@ -176,7 +184,7 @@ class selfAttentionLayer(nn.Module):
         self.slf_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
         self.pos_ffn = PositionwiseFeedForward(d_model, d_inner, dropout=dropout)
 
-    def forward(self, self_inp, slf_attn_mask=None):
+    def forward(self, self_inp, slf_attn_mask=True):
         output, slf_attn = self.slf_attn(q=self_inp, k=self_inp, v=self_inp, mask=slf_attn_mask)
         output = self.pos_ffn(output)
         return output, slf_attn
@@ -189,7 +197,7 @@ class crossAttentionLayer(nn.Module):
         self.cross_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
         self.pos_ffn = PositionwiseFeedForward(d_model, d_inner, dropout=dropout)
 
-    def forward(self, self_inp, cross_inp, slf_attn_mask=None):
+    def forward(self, self_inp, cross_inp, slf_attn_mask=True):
         self_output, slf_attn = self.slf_attn(q=self_inp, k=self_inp, v=self_inp, mask=slf_attn_mask)
         cross_output, cross_attn = self.cross_attn(q=self_output, k=cross_inp, v=cross_inp, mask=slf_attn_mask)
         output = self.pos_ffn(cross_output)
@@ -198,11 +206,12 @@ class crossAttentionLayer(nn.Module):
 
 
 class QANet(nn.Module):
-    def __init__(self, n_head=4, embedding_dim=50, feature_concat='l_r', d_k=64, attention=True, gate=None, position_embed=False, time_len=24, dis_fcn=False):
+    def __init__(self, n_head=4, embedding_dim=50, feature_concat='l_r', d_k=64, attention=True, gate=None, position_embed=False, time_len=24, dis_fcn=False, attn_mask=False):
         super().__init__()
         self.attention = attention
         self.position_embed = position_embed
         self.dis_fcn= dis_fcn
+        self.attn_mask = attn_mask
         if self.attention:
             L_d_k = d_k
             R_d_k = d_k
@@ -216,10 +225,10 @@ class QANet(nn.Module):
             self.R_self_att2 = selfAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
                                                   n_head=n_head, d_k=R_d_k, d_v=R_d_k)
 
-            self.L_self_att3 = selfAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
-                                                  n_head=n_head, d_k=L_d_k, d_v=L_d_k)
-            self.R_self_att3 = selfAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
-                                                  n_head=n_head, d_k=R_d_k, d_v=R_d_k)
+            # self.L_self_att3 = selfAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
+            #                                       n_head=n_head, d_k=L_d_k, d_v=L_d_k)
+            # self.R_self_att3 = selfAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
+            #                                       n_head=n_head, d_k=R_d_k, d_v=R_d_k)
 
 
             self.LR_cross_att = crossAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
@@ -231,10 +240,10 @@ class QANet(nn.Module):
             self.RL_cross_att_2 = crossAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
                                                     n_head=n_head, d_k=R_d_k, d_v=R_d_k)
 
-            self.LR_cross_att_3 = crossAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
-                                                      n_head=n_head, d_k=L_d_k, d_v=L_d_k)
-            self.RL_cross_att_3 = crossAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
-                                                      n_head=n_head, d_k=R_d_k, d_v=R_d_k)
+            # self.LR_cross_att_3 = crossAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
+            #                                           n_head=n_head, d_k=L_d_k, d_v=L_d_k)
+            # self.RL_cross_att_3 = crossAttentionLayer(d_model=embedding_dim, d_inner=embedding_dim * 2,
+            #                                           n_head=n_head, d_k=R_d_k, d_v=R_d_k)
 
             in_channel = 0
             if self.feature_concat == 'l_r':  # L：L;R:R
@@ -293,25 +302,25 @@ class QANet(nn.Module):
             R = R + R_pos
         if self.attention:
 
-            L_out, _ = self.L_self_att1(L)
-            R_out, _ = self.R_self_att1(R)
-            L_out, _ = self.L_self_att2(L_out)
-            R_out, _ = self.R_self_att2(R_out)
-            L_out, _ = self.L_self_att3(L_out)
-            R_out, _ = self.R_self_att3(R_out)
+            L_out, _ = self.L_self_att1(L, self.attn_mask)
+            R_out, _ = self.R_self_att1(R, self.attn_mask)
+            L_out, _ = self.L_self_att2(L_out, self.attn_mask)
+            R_out, _ = self.R_self_att2(R_out, self.attn_mask)
+            # L_out, _ = self.L_self_att3(L_out, self.attn_mask)
+            # R_out, _ = self.R_self_att3(R_out, self.attn_mask)
 
             L_inp, R_inp = None, None
             if self.feature_concat == 'l_r':
                 L_inp = L_out
                 R_inp = R_out
             else:
-                LR_out, _, _ = self.LR_cross_att(L_out, R_out)
-                LR_out, _, _ = self.LR_cross_att_2(LR_out, R_out)
-                LR_out, _, _ = self.LR_cross_att_3(LR_out, R_out)
+                LR_out, _, _ = self.LR_cross_att(L_out, R_out, self.attn_mask)
+                LR_out, _, _ = self.LR_cross_att_2(LR_out, R_out, self.attn_mask)
+                # LR_out, _, _ = self.LR_cross_att_3(LR_out, R_out)
 
-                RL_out, _, _ = self.RL_cross_att(R_out, L_out)
-                RL_out, _, _ = self.RL_cross_att_2(RL_out, L_out)
-                RL_out, _, _ = self.RL_cross_att_3(RL_out, L_out)
+                RL_out, _, _ = self.RL_cross_att(R_out, L_out, self.attn_mask)
+                RL_out, _, _ = self.RL_cross_att_2(RL_out, L_out, self.attn_mask)
+                # RL_out, _, _ = self.RL_cross_att_3(RL_out, L_out)
 
                 if self.feature_concat == 'l_lr':
                     L_inp = torch.cat((L, LR_out), dim=2)
