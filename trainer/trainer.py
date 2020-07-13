@@ -63,7 +63,7 @@ class Trainer(BaseTrainer):
 
             pm25_loss = self.loss(pm25_predict, pm25_target)
             pm10_loss = self.loss(pm10_predict, pm10_target)
-            mse_loss =  pm25_loss + pm10_loss
+            mse_loss = pm25_loss + pm10_loss
 
             l2_reg = torch.tensor(0.0).to(self.device)
             if self.config['trainer']['l2_regularization']:
@@ -144,7 +144,7 @@ class Trainer(BaseTrainer):
 
                 pm25_loss = self.loss(pm25_predict, pm25_target)
                 pm10_loss = self.loss(pm10_predict, pm10_target)
-                mse_loss = pm25_loss + pm10_loss
+                mse_loss = 2 * pm25_loss + pm10_loss
 
                 self.writer.set_step((epoch - 1) * length + batch_idx, 'valid')
                 self.writer.add_scalar('loss', mse_loss.item())
